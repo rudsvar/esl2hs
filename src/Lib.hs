@@ -34,6 +34,9 @@ keywords = ["type", "symbol"]
 keyword :: String -> Parser ()
 keyword = void . symbol
 
+parens :: Parser a -> Parser a
+parens = between (symbol "(") (symbol ")")
+
 identifier :: Parser String
 identifier = label "identifier" $ lexeme $ do
   first <- letterChar
@@ -52,16 +55,11 @@ data TypeExpr
   deriving (Eq, Ord)
 
 instance Show TypeExpr where
-  show (  TypeName []      ) = error "TypeName can't be empty string"
-  show (  TypeName (x : xs)) = toUpper x : xs
-  show (  Star     e       ) = "[" ++ show e ++ "]"
-  show (  Plus     e       ) = "(NonEmpty " ++ show e ++ ")"
-  show (  Optional e       ) = "(Maybe " ++ show e ++ ")"
-  show p@(Product a b      ) = "(" ++ showProduct p ++ ")"
-   where
-    showProduct :: TypeExpr -> String
-    showProduct (Product a b) = show a ++ ", " ++ showProduct b
-    showProduct other         = show other
+  show (  TypeName name) = upperFirst name
+  show (  Star     e   ) = "[" ++ show e ++ "]"
+  show (  Plus     e   ) = "(NonEmpty " ++ show e ++ ")"
+  show (  Optional e   ) = "(Maybe " ++ show e ++ ")"
+  show p@(Product a b  ) = "(" ++ show a ++ ", " ++ show b ++ ")"
 
 data Constructor = Constructor
   { name :: String
@@ -70,9 +68,8 @@ data Constructor = Constructor
   }
 
 instance Show Constructor where
-  show (Constructor [] _ _) = "ANONYMOUS"
-  show (Constructor (x : xs) args _) =
-    (toUpper x : xs) ++ " " ++ unwords (map show args)
+  show (Constructor name args _) =
+    upperFirst name ++ " " ++ unwords (map show args)
 
 data Alias = Alias String TypeExpr
 
@@ -92,13 +89,22 @@ constructor = do
 alias :: Parser Alias
 alias = Alias <$> (keyword "type" >> identifier) <*> (keyword "=" >> typeExpr)
 
-typeIdentifier :: Parser TypeExpr
-typeIdentifier = do
+typeName :: Parser TypeExpr
+typeName = do
   (x : xs) <- identifier
   return $ TypeName (toUpper x : xs)
 
+typeTerm :: Parser TypeExpr
+typeTerm = typeName <|> tuple
+ where
+  tuple = parens $ do
+    e1 <- typeExpr
+    symbol ","
+    e2 <- typeExpr
+    return $ Product e1 e2
+
 typeExpr :: Parser TypeExpr
-typeExpr = makeExprParser typeIdentifier operatorTable
+typeExpr = makeExprParser typeTerm operatorTable
 
 operatorTable :: [[Operator Parser TypeExpr]]
 operatorTable =
@@ -106,7 +112,6 @@ operatorTable =
     , Postfix (Plus <$ symbol "+")
     , Postfix (Optional <$ symbol "?")
     ]
-  , [InfixR (Product <$ symbol ",")]
   ]
 
 data ESLStmt = A Alias | C Constructor
@@ -127,8 +132,8 @@ splitStmt (stmt : stmts) | (xs, ys) <- splitStmt stmts = case stmt of
   A alias  -> (alias : xs, ys)
   C constr -> (xs, constr : ys)
 
-groupByRes :: [Constructor] -> [[Constructor]]
-groupByRes cs =
+groupByOutput :: [Constructor] -> [[Constructor]]
+groupByOutput cs =
   let
     sorted :: [Constructor]
     sorted = sortOn output cs
@@ -139,17 +144,25 @@ prettyPrint stmts =
   let
     (aliases, constructors) = splitStmt stmts
     printedAliases          = map show aliases
-    printedData             = map prettyPrintData (groupByRes constructors)
-  in concat
-    [ "-- Aliases\n"
-    , unlines printedAliases
-    , "\n-- Constructors\n"
-    , unlines printedData
-    ]
+    printedData             = map prettyPrintData (groupByOutput constructors)
+  in unlines printedAliases ++ "\n" ++ unlines printedData
 
 prettyPrintData :: [Constructor] -> String
-prettyPrintData []  = ""
-prettyPrintData [c] = "data " ++ name c ++ " = " ++ show c
+prettyPrintData [] = ""
 prettyPrintData (c : cs) =
-  let start = "data " ++ show (output c) ++ "\n  = " ++ show c ++ "\n"
-  in start ++ unlines (map (("  | " ++) . show) cs)
+  let
+    dataEquals   = "data " ++ show (output c) ++ "\n  = "
+    firstConstr  = prettyPrintConstr c ++ "\n"
+    otherConstrs = unlines $ map (("  | " ++) . prettyPrintConstr) cs
+  in dataEquals ++ firstConstr ++ otherConstrs
+
+prettyPrintConstr :: Constructor -> String
+prettyPrintConstr c =
+  let
+    prettyName = upperFirst (name c)
+    prettyArgs = unwords (map show (args c))
+  in prettyName ++ " " ++ prettyArgs
+
+upperFirst :: String -> String
+upperFirst []       = error "upperFirst called on empty string"
+upperFirst (c : cs) = toUpper c : cs

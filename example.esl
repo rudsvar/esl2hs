@@ -1,4 +1,4 @@
-type Tup = Expr, Expr
+type Tuple = (Expr, Expr)
 symbol foo: Expr -> Expr
 symbol foo: Expr, Expr -> Expr
 symbol bar: Tup -> Expr
@@ -7,11 +7,13 @@ symbol true: -> Value
 symbol false: -> Value
 symbol null: -> Value
 
-type Member = String, Value
+type Member = (String, Value)
 symbol object: Member* -> Value
 symbol array: Value* -> Value
 
-type Signed = Sign, Digit*
+type Signed = (Sign, Digit*)
 type Fraction = Digit*
 type Exponent = Signed
 symbol number: Signed, Fraction?, Exponent? -> Value
+
+symbol Unit: -> Unit
