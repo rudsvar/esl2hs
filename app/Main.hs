@@ -1,6 +1,6 @@
 module Main where
 
-import Lib
+import Lib (parse, esl, errorBundlePretty, prettyPrint)
 import System.Environment
 
 main :: IO ()
