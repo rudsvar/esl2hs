@@ -1,19 +1,12 @@
-type Tuple = (Expr, Expr)
-symbol foo: Expr -> Expr
-symbol foo: Expr, Expr -> Expr
-symbol bar: Tup -> Expr
-
-symbol true: -> Value
-symbol false: -> Value
-symbol null: -> Value
-
-type Member = (String, Value)
-symbol object: Member* -> Value
-symbol array: Value* -> Value
-
-type Signed = (Sign, Digit*)
-type Fraction = Digit*
-type Exponent = Signed
-symbol number: Signed, Fraction?, Exponent? -> Value
-
 symbol Unit: -> Unit
+
+symbol true: -> Expr
+symbol false: -> Expr
+symbol not: Expr -> Expr
+symbol and: Expr, Expr -> Expr
+symbol or: Expr, Expr -> Expr
+symbol ifElse: Expr, Expr, Expr -> Expr
+
+symbol zero: -> Bit
+symbol one: -> Bit
+type Bits = Bit*

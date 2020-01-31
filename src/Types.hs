@@ -1,46 +1,118 @@
+-- | Type definitions and `Pretty` implementations.
+
 module Types where
+
+import Data.List (intercalate)
+import Data.List.NonEmpty (NonEmpty(..))
 
 import Util
 
-data Data = Data
-  { dataName :: String
-  , typeAliases :: [Alias]
-  , constructors :: [Constructor]
-  }
+-- | A representation of defined type aliases and data types.
+--
+--
+-- Here is a type alias in ESL.
+--
+-- > type Bits = Bit*
+--
+-- And here is the data type Bool.
+--
+-- > symbol true: -> Bool
+-- > symbol false: -> Bool
+data Module = Module
+  { aliases :: [Alias] -- ^ The aliases
+  , dataTypes :: [DataType] -- ^ The data types
+  } deriving Show
 
+instance Pretty Module where
+  pretty mod =
+    let
+      prettyAliases   = unlines $ map pretty $ aliases mod
+      prettyDataTypes = intercalate "\n\n" (map pretty $ dataTypes mod)
+      sep             = if null prettyAliases then "" else "\n"
+    in prettyAliases ++ sep ++ prettyDataTypes
+
+-- | A representation of a data type.
+-- It must have a name and a collection of symbols.
+data DataType = DataType
+  { typeName :: String -- ^ The name of the data type.
+  , symbols :: NonEmpty Symbol -- ^ The symbol definitions of the data type.
+  } deriving Show
+
+instance Pretty DataType where
+  pretty (DataType name (c :| cs)) =
+    let
+      dataEquals   = "data " ++ name ++ "\n  = "
+      firstConstr  = pretty c
+      otherConstrs = concatMap (("\n  | " ++) . pretty) cs
+    in dataEquals ++ firstConstr ++ otherConstrs
+
+-- | A data type representing a type expression.
+-- Here is an example representing a list of tuples in ESL.
+--
+-- > (x, y)*
+--
+-- One could for instance find it in an alias:
+--
+-- > type map = (x, y)*
+--
+-- Or in a symbol declaration:
+--
+-- > symbol foo: (x, y)* -> Map
 data TypeExpr
-  = TypeName String
-  | Star TypeExpr
-  | Plus TypeExpr
-  | Optional TypeExpr
-  | Product TypeExpr TypeExpr
-  deriving (Eq, Ord)
+  = TypeName String -- ^ The name of the type.
+  | Star TypeExpr -- ^ Zero or more expressions of the given type.
+  | Plus TypeExpr -- ^ One or more expressions of the given type.
+  | Optional TypeExpr -- ^ Optionally an expression of the given type.
+  | Product [TypeExpr] -- ^ The cartesian product of two types (a tuple).
+  deriving (Eq, Ord, Show)
 
-instance Show TypeExpr where
-  show (  TypeName name) = upperFirst name
-  show (  Star     e   ) = "[" ++ show e ++ "]"
-  show (  Plus     e   ) = "(NonEmpty " ++ show e ++ ")"
-  show (  Optional e   ) = "(Maybe " ++ show e ++ ")"
-  show p@(Product a b  ) = "(" ++ show a ++ ", " ++ show b ++ ")"
+instance Pretty TypeExpr where
+  pretty (TypeName name) = upperFirst name
+  pretty (Star     e   ) = "[" ++ pretty e ++ "]"
+  pretty (Plus     e   ) = "(NonEmpty " ++ pretty e ++ ")"
+  pretty (Optional e   ) = "(Maybe " ++ pretty e ++ ")"
+  pretty (Product  xs  ) = "(" ++ intercalate ", " (map pretty xs) ++ ")"
 
-data Constructor = Constructor
-  { constructorName :: String
+-- | A data type representing a symbol declaration.
+-- This is equivalent to a constructor in Haskell.
+--
+-- It could for instance look like this:
+--
+-- > symbol foo: String, Expr -> Expr
+--
+-- Which in Haskell would be a constructor with name Foo,
+-- the two argument types String and Expr, and output another Expr.
+data Symbol = Symbol
+  { symbolName :: String
   , args :: [TypeExpr]
   , output :: TypeExpr
-  }
+  } deriving Show
 
-instance Show Constructor where
-  show (Constructor name args _) =
-    upperFirst name ++ " " ++ unwords (map show args)
+instance Pretty Symbol where
+  pretty s =
+    let
+      prettyName = upperFirst (symbolName s)
+      prettyArgs = unwords (map pretty (args s))
+      sep        = if null prettyArgs then "" else " "
+    in prettyName ++ sep ++ prettyArgs
 
-data Alias = Alias String TypeExpr
+-- | A data type representing a type alias definition.
+--
+-- Here is an example in ESL:
+--
+-- > type Bits = Bit*
+--
+-- And in Haskell this would be very similar:
+--
+-- > type Bits = [Bit]
+data Alias = Alias String TypeExpr deriving Show
 
-instance Show Alias where
-  show (Alias name e) = "type " ++ name ++ " = " ++ show e
+instance Pretty Alias where
+  pretty (Alias name e) = "type " ++ name ++ " = " ++ pretty e
 
-data ESLStmt = A Alias | C Constructor
+-- | An ESL statement can either be an alias or a symbol.
+data ESLStmt = A Alias | S Symbol
 
-instance Show ESLStmt where
-  show (A a) = show a
-  show (C c) = show c
-
+instance Pretty ESLStmt where
+  pretty (A a) = pretty a
+  pretty (S s) = pretty s
