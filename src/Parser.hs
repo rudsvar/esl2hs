@@ -17,6 +17,7 @@ import Data.List (groupBy, sortOn)
 import Data.Function (on)
 import Data.List.NonEmpty (NonEmpty(..), nonEmpty)
 import Data.Maybe (fromJust)
+import qualified Data.Set as S
 
 import Types
 import Util
@@ -114,7 +115,7 @@ makeModule stmts =
   let
     (as, ctors) = splitStmt stmts
     grouped     = groupByOutput ctors
-  in Module as (map makeDatatype grouped)
+  in Module (S.fromList as) (S.fromList $ map makeDatatype grouped)
 
 -- | Create a data type from symbol definitions
 makeDatatype :: NonEmpty Symbol -> DataType
@@ -123,9 +124,9 @@ makeDatatype (c :| cs) = DataType (pretty $ output c) (c :| cs)
 -- | Split statements into aliases and symbols
 splitStmt :: [ESLStmt] -> ([Alias], [Symbol])
 splitStmt [] = ([], [])
-splitStmt (stmt : stmts) | (aliases, symbols) <- splitStmt stmts = case stmt of
-  A a -> (a : aliases, symbols)
-  S s -> (aliases, s : symbols)
+splitStmt (stmt : stmts) | (as, symbs) <- splitStmt stmts = case stmt of
+  A a -> (a : as, symbs)
+  S s -> (as, s : symbs)
 
 -- | Group symbols by their output
 -- `groupBy` can not return a list with empty lists in it,
@@ -137,4 +138,6 @@ groupByOutput cs =
   let
     sorted :: [Symbol]
     sorted = sortOn output cs
-  in map (fromJust . nonEmpty) $ groupBy ((==) `on` output) sorted
+    grouped :: [[Symbol]]
+    grouped = groupBy ((==) `on` output) sorted
+  in map (fromJust . nonEmpty) grouped

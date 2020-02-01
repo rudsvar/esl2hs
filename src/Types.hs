@@ -4,6 +4,7 @@ module Types where
 
 import Data.List (intercalate)
 import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.Set as S
 
 import Util
 
@@ -19,16 +20,17 @@ import Util
 -- > symbol true: -> Bool
 -- > symbol false: -> Bool
 data Module = Module
-  { aliases :: [Alias] -- ^ The aliases
-  , dataTypes :: [DataType] -- ^ The data types
-  } deriving Show
+  { aliases :: S.Set Alias -- ^ The aliases
+  , dataTypes :: S.Set DataType -- ^ The data types
+  } deriving (Eq, Ord, Show)
 
 instance Pretty Module where
-  pretty mod =
+  pretty m =
     let
-      prettyAliases   = unlines $ map pretty $ aliases mod
-      prettyDataTypes = intercalate "\n\n" (map pretty $ dataTypes mod)
-      sep             = if null prettyAliases then "" else "\n"
+      prettyAliases = unlines $ map pretty $ S.toList $ aliases m
+      prettyDataTypes =
+        intercalate "\n\n" (map pretty $ S.toList $ dataTypes m)
+      sep = if null prettyAliases then "" else "\n"
     in prettyAliases ++ sep ++ prettyDataTypes
 
 -- | A representation of a data type.
@@ -36,7 +38,7 @@ instance Pretty Module where
 data DataType = DataType
   { typeName :: String -- ^ The name of the data type.
   , symbols :: NonEmpty Symbol -- ^ The symbol definitions of the data type.
-  } deriving Show
+  } deriving (Eq, Ord, Show)
 
 instance Pretty DataType where
   pretty (DataType name (c :| cs)) =
@@ -86,7 +88,7 @@ data Symbol = Symbol
   { symbolName :: String
   , args :: [TypeExpr]
   , output :: TypeExpr
-  } deriving Show
+  } deriving (Eq, Ord, Show)
 
 instance Pretty Symbol where
   pretty s =
@@ -105,7 +107,7 @@ instance Pretty Symbol where
 -- And in Haskell this would be very similar:
 --
 -- > type Bits = [Bit]
-data Alias = Alias String TypeExpr deriving Show
+data Alias = Alias String TypeExpr deriving (Eq, Ord, Show)
 
 instance Pretty Alias where
   pretty (Alias name e) = "type " ++ name ++ " = " ++ pretty e

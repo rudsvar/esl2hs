@@ -27,6 +27,7 @@ library:
   dependencies:
   - megaparsec
   - parser-combinators
+  - containers
 
 executables:
   esl2hs-exe:
@@ -43,9 +44,7 @@ tests:
   esl2hs-test:
     main:                Spec.hs
     source-dirs:         test
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
     dependencies:
     - esl2hs
+    - hspec
+    - containers
