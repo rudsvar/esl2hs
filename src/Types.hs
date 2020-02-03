@@ -27,10 +27,10 @@ data Module = Module
 instance Pretty Module where
   pretty m =
     let
-      prettyAliases = unlines $ map pretty $ S.toList $ aliases m
+      prettyAliases = intercalate "\n" $ map pretty $ S.toList $ aliases m
       prettyDataTypes =
         intercalate "\n\n" (map pretty $ S.toList $ dataTypes m)
-      sep = if null prettyAliases then "" else "\n"
+      sep = if null prettyAliases || null prettyDataTypes then "" else "\n\n"
     in prettyAliases ++ sep ++ prettyDataTypes
 
 -- | A representation of a data type.

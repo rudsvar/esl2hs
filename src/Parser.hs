@@ -4,6 +4,8 @@ module Parser
   , parseTest
   , errorBundlePretty
   , esl
+  , aliasDef
+  , symbolDef
   ) where
 
 import Control.Monad.Combinators.Expr
